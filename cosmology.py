@@ -6,8 +6,8 @@
 #
 ##############################
 
-from numpy import sqrt
-from scipy import integrate
+import numpy
+import scipy
 
 # Some constants
 
@@ -58,15 +58,15 @@ def print_cosmological_parameters(cp):
     print
 
 def Ecosmo(a,cp):
-    return sqrt(cp['OmegaR0']*pow(a,-4) + cp['OmegaM0']*pow(a,-3) + cp['OmegaK0']*pow(a,-2) + cp['OmegaL0'])
+    return numpy.sqrt(cp['OmegaR0']*pow(a,-4) + cp['OmegaM0']*pow(a,-3) + cp['OmegaK0']*pow(a,-2) + cp['OmegaL0'])
 
 def tcosmic(a,cp):
     integrand = lambda x: 1/(x*Ecosmo(x,cp))
-    return integrate.quad(integrand,0,a)[0]*1e3/cp['H0']/km_per_s_2_kpc_per_Gyr
+    return scipy.integrate.quad(integrand,0,a)[0]*1e3/cp['H0']/km_per_s_2_kpc_per_Gyr
 
 def D(a,cp):
     integrand = lambda x: 1/pow(x*Ecosmo(x,cp),3)
-    return 2.5*cp['OmegaM0']*Ecosmo(a,cp)*integrate.quad(integrand,0,a)[0]
+    return 2.5*cp['OmegaM0']*Ecosmo(a,cp)*scipy.integrate.quad(integrand,0,a)[0]
 
 def Delta_DC(a,cp):
     return D(a,cp)*cp['Delta_DC0_NG']

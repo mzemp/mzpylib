@@ -6,7 +6,7 @@
 #
 #########################
 
-from numpy import array
+import numpy
 
 def get_data(FileName):
 
@@ -19,7 +19,7 @@ def get_data(FileName):
         
     file.close()
 
-    return array(values)
+    return numpy.array(values)
 
 def get_characteristics_via_ID(FileName,ID):
 
@@ -36,7 +36,7 @@ def get_characteristics_via_ID(FileName,ID):
 
     file.close()
 
-    return array(values[0])
+    return numpy.array(values[0])
 
 def get_line_indices(FileName,d,ID):
 
@@ -83,7 +83,7 @@ def get_profiles_1d_via_ID(FileName,ID,i1l,i1u):
         assert (ID == int(line.split()[0]))
         values.append([float(value) for value in line.split()])
 
-    return array(values)
+    return numpy.array(values)
 
 def get_profiles_2d_via_ID(FileNameBegin,FileNameEnd,ID,i1l,i1u,Nz):
 
@@ -95,7 +95,7 @@ def get_profiles_2d_via_ID(FileNameBegin,FileNameEnd,ID,i1l,i1u,Nz):
         FileName = '%s.p%03d.%s'%(FileNameBegin,i,FileNameEnd)
         M.append(get_profiles_1d_via_ID(FileName,ID,i1l,i1u))
 
-    return array(M)
+    return numpy.array(M)
 
 def get_ID_etc_and_check(Ccyl,Csph):
 
@@ -118,9 +118,9 @@ def get_profiles_2d(FileList,ID,NBin,Nz):
             profileline = File.readline()
             values.append([float(value) for value in profileline.split()])
             assert(ID == int(values[-1][0]))
-        M.append(array(values))
+        M.append(numpy.array(values))
         
-    return array(M)
+    return numpy.array(M)
 
 def get_profiles_2d_combined(FileListList,ID,NBin,Nz):
 

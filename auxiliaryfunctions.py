@@ -6,8 +6,9 @@
 #
 ###########################
 
-from numpy import copy, log, nan, isnan, isinf, polyval, exp, array
-from scipy import polyfit
+import numpy
+import scipy
+import matplotlib
 
 def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,DoDiagnostics=0):
 
@@ -15,9 +16,9 @@ def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,D
     assert(NPointFit%2 == 0)
     assert(PolyFitDegree >= 1)
     assert (len(xin) == len(yin))
-    xinlocal = copy(xin)
-    yinlocal = copy(yin)
-    xoutlocal = copy(xout)
+    xinlocal = numpy.copy(xin)
+    yinlocal = numpy.copy(yin)
+    xoutlocal = numpy.copy(xout)
 
     if (xtype == 'log'):
         for i in range(len(xinlocal)):
@@ -26,47 +27,67 @@ def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,D
         for i in range(len(xoutlocal)):
             if (xoutlocal[i] < small): xoutlocal[i] = small
             assert(xinlocal[i] > 0.0)
-        xinlocal = log(xinlocal)
-        xoutlocal = log(xoutlocal)
+        xinlocal = numpy.log(xinlocal)
+        xoutlocal = numpy.log(xoutlocal)
     if (ytype == 'log'):
         for i in range(len(yinlocal)):
             if (yinlocal[i] < small): yinlocal[i] = small
             assert(yinlocal[i] > 0.0)
-        yinlocal = log(yinlocal)
+        yinlocal = numpy.log(yinlocal)
 
-    yout = [nan]*len(xoutlocal)
+    yout = [numpy.nan]*len(xoutlocal)
     for i in range(len(xoutlocal)):
         for j in range(len(xinlocal)-1):
-            if (isnan(yout[i]) and xoutlocal[i] >= xinlocal[j] and xoutlocal[i] <= xinlocal[j+1]):
+            if (numpy.isnan(yout[i]) and xoutlocal[i] >= min(xinlocal[j],xinlocal[j+1]) and xoutlocal[i] <= max(xinlocal[j],xinlocal[j+1])):
                 x_fit = []
                 y_fit = []
                 indexlower = max(0,j-(NPointFit/2-1))
                 indexupper = min(len(xinlocal),j+(NPointFit/2+1))
+
                 for k in range(indexlower,indexupper):
-                    if (not(isnan(xinlocal[k]) or isinf(xinlocal[k])) and not(isnan(yinlocal[k]) or isinf(yinlocal[k]))):
+                    if (not(numpy.isnan(xinlocal[k]) or numpy.isinf(xinlocal[k])) and not(numpy.isnan(yinlocal[k]) or numpy.isinf(yinlocal[k]))):
                         x_fit.append(xinlocal[k])
                         y_fit.append(yinlocal[k])
 
                 if (DoDiagnostics):
-                    print 'lengths', len(xinlocal), indexlower, indexupper
-                    print 'x_fit', exp(x_fit), isnan(x_fit), isinf(x_fit)
-                    print 'y_fit', y_fit, isnan(y_fit), isinf(y_fit)
+                    print
+                    print 'Diagnostics in map_value:'
+                    print 'NPointFit = %d PolyFitDegree = %d'%(NPointFit,PolyFitDegree)
+                    print 'Length = %d indexlower = %d indexupper = %d'%(len(xinlocal),indexlower,indexupper)
+                    print 'x_fit', x_fit, numpy.isnan(x_fit), numpy.isinf(x_fit)
+                    print 'y_fit', y_fit, numpy.isnan(y_fit), numpy.isinf(y_fit)
 
                 if (len(x_fit) >= 2):
                     if (len(x_fit) == 2): PolyFitDegree = 1
-                    polycoeffs = polyfit(x_fit,y_fit,PolyFitDegree)
-                    yout[i] = polyval(polycoeffs,xoutlocal[i])
+                    polycoeffs = scipy.polyfit(x_fit,y_fit,PolyFitDegree)
+                    yout[i] = numpy.polyval(polycoeffs,xoutlocal[i])
 
                     if (DoDiagnostics):
-                        print polycoeffs
-                        y_fit_poly = polyval(polycoeffs,x_fit)
-                        plt.figure(figsize=(16,12))
-                        plt.plot(xinlocal,yinlocal,'-^',color='blue')
-                        plt.plot(x_fit,y_fit_poly,'-o',color='red')
-                        plt.plot(xoutlocal[i],yout[i],'s')
-                        plt.show()
+                        print 'Polycoeffs', polycoeffs
+                        y_fit_points = numpy.polyval(polycoeffs,x_fit)
+                        x_fit_smooth = numpy.linspace(min(x_fit),max(x_fit),100)
+                        y_fit_smooth = numpy.polyval(polycoeffs,x_fit_smooth)
+                        matplotlib.pyplot.figure(figsize=(16,12))
+                        matplotlib.pyplot.plot(xinlocal,yinlocal,'-^',color='blue')
+                        matplotlib.pyplot.plot(x_fit,y_fit_points,'o',color='red')
+                        matplotlib.pyplot.plot(x_fit_smooth,y_fit_smooth,'-',color='red')
+                        matplotlib.pyplot.plot(xoutlocal[i],yout[i],'s',color='orange')
+                        matplotlib.pyplot.show()
+                        matplotlib.pyplot.close()
+                
+                if (DoDiagnostics):
+                    print
 
     if (ytype == 'log'):
-        yout = exp(yout)
+        yout = numpy.exp(yout)
 
-    return array(yout)
+    return numpy.array(yout)
+
+def find_overdensity_scale(ro,Mcum,rho_cum_ref,NPointFit=2,PolyFitDegree=1,DoDiagnostics=0):
+
+    rho_cum = 3*Mcum/(4*numpy.pi*pow(ro,3))
+
+    r = map_value('log','log',rho_cum,ro,[rho_cum_ref],NPointFit=NPointFit,PolyFitDegree=PolyFitDegree,DoDiagnostics=DoDiagnostics)[0]
+    M = map_value('log','log',ro,Mcum,[r],NPointFit=NPointFit,PolyFitDegree=PolyFitDegree,DoDiagnostics=DoDiagnostics)[0]
+
+    return r,M
