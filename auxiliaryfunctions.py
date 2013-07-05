@@ -16,9 +16,9 @@ def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,D
     assert(NPointFit%2 == 0)
     assert(PolyFitDegree >= 1)
     assert (len(xin) == len(yin))
-    xinlocal = numpy.copy(xin)
-    yinlocal = numpy.copy(yin)
-    xoutlocal = numpy.copy(xout)
+    xinlocal = numpy.copy(xin).astype(float)
+    yinlocal = numpy.copy(yin).astype(float)
+    xoutlocal = numpy.copy(xout).astype(float)
 
     if (xtype == 'log'):
         for i in range(len(xinlocal)):
@@ -26,7 +26,7 @@ def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,D
             assert(xinlocal[i] > 0.0)
         for i in range(len(xoutlocal)):
             if (xoutlocal[i] < small): xoutlocal[i] = small
-            assert(xinlocal[i] > 0.0)
+            assert(xoutlocal[i] > 0.0)
         xinlocal = numpy.log(xinlocal)
         xoutlocal = numpy.log(xoutlocal)
     if (ytype == 'log'):
@@ -96,24 +96,33 @@ def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,D
 
     return numpy.array(yout)
 
-def find_overdensity_scale(ro,Mcum,rho_cum_ref,NPointFit=2,PolyFitDegree=1,DoDiagnostics=0,DoClean=1):
+def find_overdensity_scale(ro,Mcum,rho_cum_ref,NPointFit=2,PolyFitDegree=1,DoDiagnostics=0,Mode='profile',DoClean=1):
 
     rho_cum = 3*Mcum/(4*numpy.pi*pow(ro,3))
+    ro_clean = []
+    Mcum_clean = []
+    rho_cum_clean = []
 
-    RemoveIndex = []
-    for i in range(1,len(ro)):
-        slope = (rho_cum[i]-rho_cum[i-1])/(ro[i]-ro[i-1])
-        if (slope > 0 and DoClean): RemoveIndex.append(i-1)
-        if (slope <= 0): break
-
-    ro_clean = numpy.delete(ro,RemoveIndex)
-    Mcum_clean = numpy.delete(Mcum,RemoveIndex)
-    rho_cum_clean = numpy.delete(rho_cum,RemoveIndex)
+    if (Mode == 'profile'):
+        for i in range(1,len(rho_cum)):
+            if (rho_cum[i-1] >= rho_cum_ref and  rho_cum[i] < rho_cum_ref):
+                ro_clean = ro[i-1:i+1]
+                Mcum_clean = Mcum[i-1:i+1]
+                rho_cum_clean = rho_cum[i-1:i+1]
+                break
+    else:
+        RemoveIndex = []
+        for i in range(1,len(rho_cum)):
+            slope = (rho_cum[i]-rho_cum[i-1])/(ro[i]-ro[i-1])
+            if (slope > 0 and DoClean): RemoveIndex.append(i-1)
+            if (slope <= 0): break
+        ro_clean = numpy.delete(ro,RemoveIndex)
+        Mcum_clean = numpy.delete(Mcum,RemoveIndex)
+        rho_cum_clean = numpy.delete(rho_cum,RemoveIndex)
 
     r = map_value('log','log',rho_cum_clean,ro_clean,[rho_cum_ref],NPointFit=NPointFit,PolyFitDegree=PolyFitDegree,DoDiagnostics=DoDiagnostics)[0]
+    if (numpy.isnan(r)): r = 0.0
     M = map_value('log','log',ro_clean,Mcum_clean,[r],NPointFit=NPointFit,PolyFitDegree=PolyFitDegree,DoDiagnostics=DoDiagnostics)[0]
-
-    if (numpy.isnan(r)): r = 0
-    if (numpy.isnan(M)): M = 0
+    if (numpy.isnan(M)): M = 0.0
 
     return r,M
