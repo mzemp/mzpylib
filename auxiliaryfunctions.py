@@ -10,6 +10,23 @@ import numpy
 import scipy
 import matplotlib
 
+# Flexible comparison function for floats
+
+def is_nearly_equal(a,b,absTol=1e-8,relTol=1e-8):
+
+    if (a == b):
+        return True
+    elif (numpy.isnan(a) or numpy.isnan(b)):
+        return numpy.isnan(a) and numpy.isnan(b)
+    elif (numpy.isposinf(a) or numpy.isposinf(b)):
+        return numpy.isposinf(a) and numpy.isposinf(b)
+    elif (numpy.isneginf(a) or numpy.isneginf(b)):
+        return numpy.isneginf(a) and numpy.isneginf(b)
+    else:
+        return abs(a-b) < max(absTol,relTol*max(abs(a),abs(b))) 
+
+# Mapping function with polynomial fitting
+
 def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,DoDiagnostics=0):
 
     assert(NPointFit >= 2)
@@ -95,6 +112,8 @@ def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,D
         yout = numpy.exp(yout)
 
     return numpy.array(yout)
+
+# Function for finding a specified overdensity scale
 
 def find_overdensity_scale(ro,Mcum,rho_cum_ref,NPointFit=2,PolyFitDegree=1,DoDiagnostics=0,Mode='profile',DoClean=1):
 

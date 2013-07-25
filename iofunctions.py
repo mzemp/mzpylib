@@ -8,6 +8,8 @@
 
 import numpy
 
+# General data reading function
+
 def get_data(FileName):
 
     file = open('%s'%FileName,'r')
@@ -20,6 +22,8 @@ def get_data(FileName):
     file.close()
 
     return numpy.array(values)
+
+# Functions to get data from characteristics file
 
 def get_characteristics_via_ID(FileName,ID):
 
@@ -66,6 +70,8 @@ def get_line_indices(FileName,d,ID):
         return Ilower, Iupper, Nz
     else:
         return Ilower, Iupper
+
+# Functions to get profile data
 
 def get_profiles_1d_via_ID(FileName,ID,i1l,i1u):
 
