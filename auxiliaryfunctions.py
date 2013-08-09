@@ -8,6 +8,7 @@
 
 import numpy
 import scipy
+import lmfit
 import matplotlib
 
 # Flexible comparison function for floats
@@ -145,3 +146,123 @@ def find_overdensity_scale(ro,Mcum,rho_cum_ref,NPointFit=2,PolyFitDegree=1,DoDia
     if (numpy.isnan(M)): M = 0.0
 
     return r,M
+
+# Function for fitting density profiles
+
+def fit_density_profile(r,rho,sigma=None,minrs=None,maxrs=None,minrho0=None,maxrho0=None,minalpha=None,maxalpha=None,minbeta=None,maxbeta=None,mingamma=None,maxgamma=None,alphaE=0.18,Mode='NFW'):
+
+    assert(Mode in ['Spline','NFW','GNFW','bc','abc','Einasto2','Einasto3'])
+    assert(len(r) == len(rho))
+    if not(sigma == None):
+        assert(len(r) == len(sigma))
+        for s in sigma: assert(s > 0)
+
+    if (Mode == 'Spline'):
+        if (len(r) > 3):
+            w = None if (sigma == None) else 1/numpy.log(1+sigma)
+            spline = scipy.interpolate.UnivariateSpline(numpy.log(r),numpy.log(rho),w=w)
+            logslope_spline = []
+            logrlogslope_spline = []
+            for i in range(len(r)):
+                if (spline.derivatives(numpy.log(r[i]))[2] <=0):
+                    logslope_spline.append(spline.derivatives(numpy.log(r[i]))[1])
+                    logrlogslope_spline.append(numpy.log(r[i]))
+            rm2 = numpy.exp(map_value('lin','lin',logslope_spline,logrlogslope_spline,[-2])[0])
+            if (numpy.isnan(rm2)): rm2 = 0.0
+            return rm2, spline
+        else:
+            return 0.0, 0.0
+
+    else:
+
+        # Define minimizing functions first
+
+        if (Mode in ['NFW','GNFW','bc','abc']):
+
+            def fmin(parameters,r,rho,sigma):
+                rs = float(parameters['rs'].value)
+                rho0 = float(parameters['rho0'].value)
+                alpha = float(parameters['alpha'].value)
+                beta = float(parameters['beta'].value)
+                gamma = float(parameters['gamma'].value)
+                logfit = numpy.log(rho0)-(gamma*(numpy.log(r)-numpy.log(rs))+((beta-gamma)/alpha)*numpy.log(1+pow(r/rs,alpha)))
+                if (sigma == None):
+                    return logfit-numpy.log(rho)
+                else:
+                    return (logfit-numpy.log(rho))/numpy.log(1+sigma)
+
+        elif (Mode in ['Einasto2','Einasto3']):
+            
+            def fmin(parameters,r,rho,sigma):
+                rs = float(parameters['rs'].value)
+                rho0 = float(parameters['rho0'].value)
+                alpha = float(parameters['alpha'].value)
+                logfit = numpy.log(rho0)-(2/alpha)*(pow(r/rs,alpha)-1)
+                if (sigma == None):
+                    return logfit-numpy.log(rho)
+                else:
+                    return (logfit-numpy.log(rho))/numpy.log(1+sigma)
+
+        # Define parameters
+
+        medr = numpy.median(r)
+        medrho = numpy.median(rho)
+        parameters = lmfit.Parameters()
+        if (Mode == 'NFW'):
+            NDOF = 2
+            parameters.add('rs', value=medr, min=minrs, max=maxrs)
+            parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
+            parameters.add('alpha', value=1, vary=False)
+            parameters.add('beta', value=3, vary=False)
+            parameters.add('gamma', value=1, vary=False)
+        elif (Mode == 'GNFW'):
+            NDOF = 3
+            parameters.add('rs', value=medr, min=minrs, max=maxrs)
+            parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
+            parameters.add('alpha', value=1, vary=False)
+            parameters.add('beta', value=3, vary=False)
+            parameters.add('gamma', value=1, min=mingamma, max=maxgamma)
+        elif (Mode == 'bc'):
+            NDOF = 4
+            parameters.add('rs', value=medr, min=minrs, max=maxrs)
+            parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
+            parameters.add('alpha', value=1, vary=False)
+            parameters.add('beta', value=3, min=minbeta, max=maxbeta)
+            parameters.add('gamma', value=1, min=mingamma, max=maxgamma)
+        elif (Mode == 'abc'):
+            NDOF = 5
+            parameters.add('rs', value=medr, min=minrs, max=maxrs)
+            parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
+            parameters.add('alpha', value=1, min=minalpha, max=maxalpha)
+            parameters.add('beta', value=3, min=minbeta, max=maxbeta)
+            parameters.add('gamma', value=1, min=mingamma, max=maxgamma)
+        elif (Mode == 'Einasto2'):
+            NDOF = 2
+            parameters.add('rs', value=medr, min=minrs, max=maxrs)
+            parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
+            parameters.add('alpha', value=alphaE, vary=False)
+        elif (Mode == 'Einasto3'):
+            NDOF = 3
+            parameters.add('rs', value=medr, min=minrs, max=maxrs)
+            parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
+            parameters.add('alpha', value=alphaE, min=minalpha, max=maxalpha)
+
+        # Do fitting & return
+
+        if (len(r) > NDOF):
+            result = lmfit.minimize(fmin,parameters,args=(r,rho,sigma))
+            rs = parameters['rs'].value
+            rho0 = parameters['rho0'].value
+            alpha = parameters['alpha'].value
+            if (Mode in ['NFW','GNFW','bc','abc']):
+                beta = parameters['beta'].value
+                gamma = parameters['gamma'].value
+                return rs, rho0, alpha, beta, gamma
+            elif (Mode in ['Einasto2','Einasto3']):
+                return rs, rho0, alpha
+        else:
+            if (Mode in ['NFW','GNFW','bc','abc']):
+                return 0.0, 0.0, 0.0, 0.0, 0.0
+            elif (Mode in ['Einasto2','Einasto3']):
+                return 0.0, 0.0, 0.0
+

@@ -86,13 +86,13 @@ def abox_EV(a,cp):
 
 # alpha-beta-gamma density profiles with 1. & 2. derivative
 
-def rho_abc(r,alpha=1,beta=3,gamma=1,rs=1,rho0=1,rcutoff=numpy.inf,fdecay=0.3):
+def rho_abc(r,rs=1,rho0=1,alpha=1,beta=3,gamma=1,rcutoff=numpy.inf,fdecay=0.3):
 
+    rs = float(rs)
+    rho0 = float(rho0)
     alpha = float(alpha)
     beta = float(beta)
     gamma = float(gamma)
-    rs = float(rs)
-    rho0 = float(rho0)
     rcutoff = float(rcutoff)
     rdecay = float(fdecay)*rcutoff
     delta = rcutoff/rdecay - (gamma+beta*pow(rcutoff/rs,alpha))/(1+pow(rcutoff/rs,alpha))
@@ -127,3 +127,32 @@ def rho_abc(r,alpha=1,beta=3,gamma=1,rs=1,rho0=1,rcutoff=numpy.inf,fdecay=0.3):
         drhocutoffdr = rhocutoff*(delta/r[si:]-1/rdecay)
         d2rhocutoffdr2 = rhocutoff*(pow(delta/r[si:]-1/rdecay,2)-delta/pow(r[si:],2))
         return numpy.append(rho,rhocutoff), numpy.append(drhodr,drhocutoffdr), numpy.append(d2rhodr2,d2rhocutoffdr2)
+
+# Einasto density profile with 1. & 2. derivative
+
+def rho_einasto(r,rs=1,rho0=1,alpha=0.18):
+
+    # alpha=0.18 from Springel et al. http://adsabs.harvard.edu/abs/2008MNRAS.391.1685S
+
+    rs = float(rs)
+    rho0 = float(rho0)
+    alpha = float(alpha)
+
+    rho = rho0*numpy.exp(-(2/alpha)*(pow(r/rs,alpha)-1))
+    drhodr = rho*(-2*pow(r/rs,alpha-1)/rs)
+    d2rhodr2 = drhodr*(-2*pow(r/rs,alpha-1)/rs)+rho*(-2*(alpha-1)*pow(r/rs,alpha-2)/pow(rs,2))
+
+    return rho, drhodr, d2rhodr2
+
+# Helper function to calculate logarithmic derivatives
+
+def rho_logarithmic_derivatives(r,rho,drhodr,d2rhodr2):
+
+    assert(len(r) == len(rho))
+    assert(len(r) == len(drhodr))
+    assert(len(r) == len(d2rhodr2))
+
+    dlogrhodlogr = r*drhodr/rho
+    d2logrhodlogr2 = dlogrhodlogr-pow(r*drhodr/rho,2)+pow(r,2)*d2rhodr2/rho
+
+    return dlogrhodlogr, d2logrhodlogr2
