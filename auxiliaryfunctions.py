@@ -149,9 +149,9 @@ def find_overdensity_scale(ro,Mcum,rho_cum_ref,NPointFit=2,PolyFitDegree=1,DoDia
 
 # Function for fitting density profiles
 
-def fit_density_profile(r,rho,sigma=None,minrs=None,maxrs=None,minrho0=None,maxrho0=None,minalpha=None,maxalpha=None,minbeta=None,maxbeta=None,mingamma=None,maxgamma=None,alphaE=0.18,Mode='NFW'):
+def fit_density_profile(r,rho,sigma=None,alpha=None,beta=None,gamma=None,minrs=None,maxrs=None,minrho0=None,maxrho0=None,minalpha=None,maxalpha=None,minbeta=None,maxbeta=None,mingamma=None,maxgamma=None,Mode='NFW'):
 
-    assert(Mode in ['Spline','NFW','GNFW','bc','abc','Einasto2','Einasto3'])
+    assert(Mode in ['Spline','NFW','GNFW','abc2','abc3','abc4','abc5','Einasto2','Einasto3'])
     assert(len(r) == len(rho))
     if not(sigma == None):
         assert(len(r) == len(sigma))
@@ -177,7 +177,11 @@ def fit_density_profile(r,rho,sigma=None,minrs=None,maxrs=None,minrho0=None,maxr
 
         # Define minimizing functions first
 
-        if (Mode in ['NFW','GNFW','bc','abc']):
+        if (Mode in ['NFW','GNFW','abc2','abc3','abc4','abc5']):
+
+            if alpha is None: alpha = 1
+            if beta is None: beta = 3
+            if gamma is None: gamma = 1
 
             def fmin(parameters,r,rho,sigma):
                 rs = float(parameters['rs'].value)
@@ -193,6 +197,8 @@ def fit_density_profile(r,rho,sigma=None,minrs=None,maxrs=None,minrho0=None,maxr
 
         elif (Mode in ['Einasto2','Einasto3']):
             
+            if alpha is None: alpha = 0.16
+
             def fmin(parameters,r,rho,sigma):
                 rs = float(parameters['rs'].value)
                 rho0 = float(parameters['rho0'].value)
@@ -222,30 +228,44 @@ def fit_density_profile(r,rho,sigma=None,minrs=None,maxrs=None,minrho0=None,maxr
             parameters.add('alpha', value=1, vary=False)
             parameters.add('beta', value=3, vary=False)
             parameters.add('gamma', value=1, min=mingamma, max=maxgamma)
-        elif (Mode == 'bc'):
+        elif (Mode == 'abc2'):
+            NDOF = 2
+            parameters.add('rs', value=medr, min=minrs, max=maxrs)
+            parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
+            parameters.add('alpha', value=alpha, vary=False)
+            parameters.add('beta', value=beta, vary=False)
+            parameters.add('gamma', value=gamma, vary=False)
+        elif (Mode == 'abc3'):
+            NDOF = 3
+            parameters.add('rs', value=medr, min=minrs, max=maxrs)
+            parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
+            parameters.add('alpha', value=alpha, vary=False)
+            parameters.add('beta', value=beta, vary=False)
+            parameters.add('gamma', value=gamma, min=mingamma, max=maxgamma)
+        elif (Mode == 'abc4'):
             NDOF = 4
             parameters.add('rs', value=medr, min=minrs, max=maxrs)
             parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
-            parameters.add('alpha', value=1, vary=False)
-            parameters.add('beta', value=3, min=minbeta, max=maxbeta)
-            parameters.add('gamma', value=1, min=mingamma, max=maxgamma)
-        elif (Mode == 'abc'):
+            parameters.add('alpha', value=alpha, vary=False)
+            parameters.add('beta', value=beta, min=minbeta, max=maxbeta)
+            parameters.add('gamma', value=gamma, min=mingamma, max=maxgamma)
+        elif (Mode == 'abc5'):
             NDOF = 5
             parameters.add('rs', value=medr, min=minrs, max=maxrs)
             parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
-            parameters.add('alpha', value=1, min=minalpha, max=maxalpha)
-            parameters.add('beta', value=3, min=minbeta, max=maxbeta)
-            parameters.add('gamma', value=1, min=mingamma, max=maxgamma)
+            parameters.add('alpha', value=alpha, min=minalpha, max=maxalpha)
+            parameters.add('beta', value=beta, min=minbeta, max=maxbeta)
+            parameters.add('gamma', value=gamma, min=mingamma, max=maxgamma)
         elif (Mode == 'Einasto2'):
             NDOF = 2
             parameters.add('rs', value=medr, min=minrs, max=maxrs)
             parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
-            parameters.add('alpha', value=alphaE, vary=False)
+            parameters.add('alpha', value=alpha, vary=False)
         elif (Mode == 'Einasto3'):
             NDOF = 3
             parameters.add('rs', value=medr, min=minrs, max=maxrs)
             parameters.add('rho0', value=medrho, min=minrho0, max=maxrho0)
-            parameters.add('alpha', value=alphaE, min=minalpha, max=maxalpha)
+            parameters.add('alpha', value=alpha, min=minalpha, max=maxalpha)
 
         # Do fitting & return
 
@@ -254,14 +274,14 @@ def fit_density_profile(r,rho,sigma=None,minrs=None,maxrs=None,minrho0=None,maxr
             rs = parameters['rs'].value
             rho0 = parameters['rho0'].value
             alpha = parameters['alpha'].value
-            if (Mode in ['NFW','GNFW','bc','abc']):
+            if (Mode in ['NFW','GNFW','abc2','abc3','abc4','abc5']):
                 beta = parameters['beta'].value
                 gamma = parameters['gamma'].value
                 return rs, rho0, alpha, beta, gamma
             elif (Mode in ['Einasto2','Einasto3']):
                 return rs, rho0, alpha
         else:
-            if (Mode in ['NFW','GNFW','bc','abc']):
+            if (Mode in ['NFW','GNFW','abc2','abc3','abc4','abc5']):
                 return 0.0, 0.0, 0.0, 0.0, 0.0
             elif (Mode in ['Einasto2','Einasto3']):
                 return 0.0, 0.0, 0.0
