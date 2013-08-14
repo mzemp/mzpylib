@@ -116,12 +116,10 @@ def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,D
 
 # Function for finding a specified overdensity scale
 
-def find_overdensity_scale(ro,Mcum,rho_cum_ref,NPointFit=2,PolyFitDegree=1,DoDiagnostics=0,Mode='profile',DoClean=1):
+def find_overdensity_scale(ro,Mcum,rho_cum_ref,NPointFit=2,PolyFitDegree=1,DoDiagnostics=0,DoClean=1,Mode='profile'):
 
     rho_cum = 3*Mcum/(4*numpy.pi*pow(ro,3))
-    ro_clean = []
-    Mcum_clean = []
-    rho_cum_clean = []
+    ro_clean,Mcum_clean,rho_cum_clean = [],[],[]
 
     if (Mode == 'profile'):
         for i in range(1,len(rho_cum)):
@@ -286,3 +284,44 @@ def fit_density_profile(r,rho,sigma=None,alpha=None,beta=None,gamma=None,minrs=N
             elif (Mode in ['Einasto2','Einasto3']):
                 return 0.0, 0.0, 0.0
 
+# Function for finding vcmax scale
+
+def find_vcmax_scale(ro,Mcum,rmax=numpy.inf,fcheckrvcmax=2.0,OnlyInnermostPeak=0,Mode='profile'):
+
+    if (Mode == 'profile'):
+        logr = 0.5*(numpy.log(ro[:-1])+numpy.log(ro[1:]))
+        logslope = numpy.diff(numpy.log(Mcum))/numpy.diff(numpy.log(ro))
+        rvcmax,Mrvcmax = 0.0,0.0
+        for i in range(1,len(logslope)):
+            if (logslope[i-1] >= 1 and logslope[i] < 1):
+                rcheck = numpy.exp(map_value('lin','lin',logslope[i-1:i+1],logr[i-1:i+1],[1])[0])
+                Mrcheck = map_value('log','log',ro,Mcum,[rcheck],NPointFit=2,PolyFitDegree=1)[0]
+                Qcheck,Ncheck,Scheck = Mrcheck/rcheck,0,0
+                for k in range(i+1,len(ro)):
+                    if (ro[k] <= fcheckrvcmax*rcheck):
+                        Ncheck += 1
+			Qcomp = Mcum[k]/ro[k]
+			if (Qcheck >= Qcomp): Scheck += 1
+                    else:
+                        break
+                if (Scheck == Ncheck):
+                    if (rvcmax == 0):
+                        if (OnlyInnermostPeak):
+                            return rcheck,Mrcheck
+                        else:
+                            rvcmax = rcheck
+                            Mrvcmax = Mrcheck
+                    elif (Mrcheck/rcheck > Mrvcmax/rvcmax and rcheck <= rmax):
+                        rvcmax = rcheck
+                        Mrvcmax = Mrcheck
+                    assert(rvcmax > 0)
+                    assert(Mrvcmax > 0)
+    else:
+        IndexList = (numpy.diff(numpy.sign(numpy.diff(Mcum/ro))) < 0).nonzero()[0] + 1
+        if (len(IndexList) > 0):
+            i = IndexList[0]
+            rvcmax,Mrvcmax = ro[i],Mcum[i]
+        else:
+            rvcmax,Mrvcmax = 0.0,0.0
+
+    return rvcmax, Mrvcmax
