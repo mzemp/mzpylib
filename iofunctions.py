@@ -132,7 +132,7 @@ def get_profiles_2d_combined(FileListList,ID,NBin,Nz):
 
     for mt,FileList in zip(range(len(FileListList)),FileListList):
         if (mt == 0):
-            PcylCombined = copy(get_profiles_2d(FileList,ID,NBin,Nz))
+            PcylCombined = numpy.copy(get_profiles_2d(FileList,ID,NBin,Nz))
         else:
             TempPcyl = get_profiles_2d(FileList,ID,NBin,Nz)
             for iz in range(2*Nz):
