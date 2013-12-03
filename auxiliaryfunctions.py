@@ -58,6 +58,12 @@ def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,D
         print 'Diagnostics in map_value:'
         print
         print 'NPointFit = %d PolyFitDegree = %d'%(NPointFit,PolyFitDegree)
+        print 'xin      ', xin
+        print 'xinlocal ', xinlocal
+        print 'yin      ', yin
+        print 'yinlocal ', yinlocal
+        print 'xout     ', xout
+        print 'xoutlocal', xoutlocal
 
     yout = [numpy.nan]*len(xoutlocal)
     for i in range(len(xoutlocal)):
@@ -118,29 +124,32 @@ def map_value(xtype,ytype,xin,yin,xout,NPointFit=4,PolyFitDegree=2,small=1e-20,D
 
 def find_overdensity_scale(ro,Mcum,rho_cum_ref,NPointFit=2,PolyFitDegree=1,DoDiagnostics=0,DoClean=1,Mode='profile'):
 
-    rho_cum = 3*Mcum/(4*numpy.pi*pow(ro,3))
-    ro_clean,Mcum_clean,rho_cum_clean = [],[],[]
+    assert(len(ro) == len(Mcum))
+    ro_clean = ro[numpy.nonzero(Mcum>0)]
+    Mcum_clean = Mcum[numpy.nonzero(Mcum>0)]
+    rho_cum_clean = 3*Mcum_clean/(4*numpy.pi*pow(ro_clean,3))
+    ro_map,Mcum_map,rho_cum_map = [],[],[]
 
     if (Mode == 'profile'):
-        for i in range(1,len(rho_cum)):
-            if (rho_cum[i-1] >= rho_cum_ref and  rho_cum[i] < rho_cum_ref):
-                ro_clean = ro[i-1:i+1]
-                Mcum_clean = Mcum[i-1:i+1]
-                rho_cum_clean = rho_cum[i-1:i+1]
+        for i in range(1,len(rho_cum_clean)):
+            if (rho_cum_clean[i-1] >= rho_cum_ref and  rho_cum_clean[i] < rho_cum_ref):
+                ro_map = ro_clean[i-1:i+1]
+                Mcum_map = Mcum_clean[i-1:i+1]
+                rho_cum_map = rho_cum_clean[i-1:i+1]
                 break
     else:
         RemoveIndex = []
-        for i in range(1,len(rho_cum)):
-            slope = (rho_cum[i]-rho_cum[i-1])/(ro[i]-ro[i-1])
+        for i in range(1,len(rho_cum_clean)):
+            slope = (rho_cum_clean[i]-rho_cum_clean[i-1])/(ro_clean[i]-ro_clean[i-1])
             if (slope > 0 and DoClean): RemoveIndex.append(i-1)
             if (slope <= 0): break
-        ro_clean = numpy.delete(ro,RemoveIndex)
-        Mcum_clean = numpy.delete(Mcum,RemoveIndex)
-        rho_cum_clean = numpy.delete(rho_cum,RemoveIndex)
+        ro_map = numpy.delete(ro_clean,RemoveIndex)
+        Mcum_map = numpy.delete(Mcum_clean,RemoveIndex)
+        rho_cum_map = numpy.delete(rho_cum_clean,RemoveIndex)
 
-    r = map_value('log','log',rho_cum_clean,ro_clean,[rho_cum_ref],NPointFit=NPointFit,PolyFitDegree=PolyFitDegree,DoDiagnostics=DoDiagnostics)[0]
+    r = map_value('log','log',rho_cum_map,ro_map,[rho_cum_ref],NPointFit=NPointFit,PolyFitDegree=PolyFitDegree,DoDiagnostics=DoDiagnostics)[0]
     if (numpy.isnan(r)): r = 0.0
-    M = map_value('log','log',ro_clean,Mcum_clean,[r],NPointFit=NPointFit,PolyFitDegree=PolyFitDegree,DoDiagnostics=DoDiagnostics)[0]
+    M = map_value('log','log',ro_map,Mcum_map,[r],NPointFit=NPointFit,PolyFitDegree=PolyFitDegree,DoDiagnostics=DoDiagnostics)[0]
     if (numpy.isnan(M)): M = 0.0
 
     return r,M
@@ -288,19 +297,22 @@ def fit_density_profile(r,rho,sigma=None,alpha=None,beta=None,gamma=None,minrs=N
 
 def find_vcmax_scale(ro,Mcum,rmax=numpy.inf,fcheckrvcmax=2.0,OnlyInnermostPeak=0,Mode='profile'):
 
+    assert(len(ro) == len(Mcum))
+    ro_clean = ro[numpy.nonzero(Mcum>0)]
+    Mcum_clean = Mcum[numpy.nonzero(Mcum>0)]
     if (Mode == 'profile'):
-        logr = 0.5*(numpy.log(ro[:-1])+numpy.log(ro[1:]))
-        logslope = numpy.diff(numpy.log(Mcum))/numpy.diff(numpy.log(ro))
+        logr = 0.5*(numpy.log(ro_clean[:-1])+numpy.log(ro_clean[1:]))
+        logslope = numpy.diff(numpy.log(Mcum_clean))/numpy.diff(numpy.log(ro_clean))
         rvcmax,Mrvcmax = 0.0,0.0
         for i in range(1,len(logslope)):
             if (logslope[i-1] >= 1 and logslope[i] < 1):
                 rcheck = numpy.exp(map_value('lin','lin',logslope[i-1:i+1],logr[i-1:i+1],[1])[0])
-                Mrcheck = map_value('log','log',ro,Mcum,[rcheck],NPointFit=2,PolyFitDegree=1)[0]
+                Mrcheck = map_value('log','log',ro_clean,Mcum_clean,[rcheck],NPointFit=2,PolyFitDegree=1)[0]
                 Qcheck,Ncheck,Scheck = Mrcheck/rcheck,0,0
-                for k in range(i+1,len(ro)):
-                    if (ro[k] <= fcheckrvcmax*rcheck):
+                for k in range(i+1,len(ro_clean)):
+                    if (ro_clean[k] <= fcheckrvcmax*rcheck):
                         Ncheck += 1
-			Qcomp = Mcum[k]/ro[k]
+			Qcomp = Mcum_clean[k]/ro_clean[k]
 			if (Qcheck >= Qcomp): Scheck += 1
                     else:
                         break
@@ -317,10 +329,10 @@ def find_vcmax_scale(ro,Mcum,rmax=numpy.inf,fcheckrvcmax=2.0,OnlyInnermostPeak=0
                     assert(rvcmax > 0)
                     assert(Mrvcmax > 0)
     else:
-        IndexList = (numpy.diff(numpy.sign(numpy.diff(Mcum/ro))) < 0).nonzero()[0] + 1
+        IndexList = (numpy.diff(numpy.sign(numpy.diff(Mcum_clean/ro_clean))) < 0).nonzero()[0] + 1
         if (len(IndexList) > 0):
             i = IndexList[0]
-            rvcmax,Mrvcmax = ro[i],Mcum[i]
+            rvcmax,Mrvcmax = ro_clean[i],Mcum_clean[i]
         else:
             rvcmax,Mrvcmax = 0.0,0.0
 
