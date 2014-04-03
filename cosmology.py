@@ -117,6 +117,13 @@ def tcosmic(a,cp):
     integrand = lambda x: 1/(x*Ecosmo(x,cp))
     return scipy.integrate.quad(integrand,0,a)[0]*1e3/cp['H0']/km_per_s_2_kpc_per_Gyr
 
+# Scale factor
+
+def ascale(t,cp,a0=1):
+
+    f = lambda x: tcosmic(x,cp)-t
+    return scipy.optimize.newton(f,a0)
+
 # Growth factor
 
 def D(a,cp):
