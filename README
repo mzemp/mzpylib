@@ -1,0 +1,20 @@
+DESCRIPTION
+
+This is a library of some python functions useful for data analysis within the area of computational astrophysics.
+
+
+AUTHOR
+
+Marcel Zemp <marcelzemp@gmail.com>
+
+
+OFFICIAL SOURCE
+
+GitHub: https://github.com/mzemp/mzpylib
+
+
+INSTALLATION
+
+In order to call the python functions of the library, make sure that the installation path of the library (e.g. ~/libraries/ under your home directory) is included in the python search path by setting the following environment variable (e.g. in your .bashrc file):
+
+export PYTHONPATH=~/libraries:$PYTHONPATH
